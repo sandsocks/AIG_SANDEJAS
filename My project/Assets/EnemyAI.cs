@@ -11,7 +11,7 @@ public class EnemyAI : MonoBehaviour
     public Transform target;
     public Transform[] patrolPoints;
 
-    public float detectionRage;
+    public float detectionRange;
     public float loseRange;
 
     public float waypointTolerance;
@@ -63,8 +63,8 @@ public class EnemyAI : MonoBehaviour
 
     private class ActionNode : Node
     {
-        private readonly Func<Node> action;
-        public ActionNode(Func<Node> action) => this.action = action;
+        private readonly Func<NodeStates> action;
+        public ActionNode(Func<NodeStates> action) => this.action = action;
         public override NodeStates Tick() => action();
     }
 
@@ -115,7 +115,7 @@ public class EnemyAI : MonoBehaviour
 
         if (!isChasing)
         {
-            if (d <= detectionRage)
+            if (d <= detectionRange)
             {
                 isChasing = true;
                 return NodeStates.Success;
@@ -132,7 +132,7 @@ public class EnemyAI : MonoBehaviour
 
     private NodeStates ChaseTarget()
     {
-        if (target == null) return NodeStates.c;
+        if (target == null) return NodeStates.Failure;
         agent.isStopped =false;
         agent.SetDestination(target.position);
         return NodeStates.Running;
@@ -155,10 +155,32 @@ public class EnemyAI : MonoBehaviour
             agent.isStopped = true;
             return NodeStates.Running;
         }
+
+        agent.isStopped = false;
+        agent.SetDestination(current.position);
+
+        if (!agent.pathPending && agent.remainingDistance <= waypointTolerance)
+        {
+            idleTimer = idleAtWaypointSeconds;
+            PatrolIndex = (PatrolIndex + 1) % patrolPoints.Length;
+        }
+
+        return NodeStates.Running;
     }
 
     private NodeStates Idle()
     {
+        agent.isStopped = true;
+        return NodeStates.Running;
+    }
 
+    // Visualize detection and lose ranges in the Scene view
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, detectionRange);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, loseRange);
     }
 }
